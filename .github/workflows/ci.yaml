@@ -1,0 +1,88 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  snyk-scan:
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Snyk
+        run: npm i -g snyk@latest
+
+      - name: Auth
+        run: snyk auth $SNYK_TOKEN
+
+      - name: Snyk Code (SAST)
+        run: snyk code test --severity-threshold=high
+
+      - name: Install deps (api)
+        working-directory: app/api
+        run: npm ci
+
+      - name: Snyk Open Source (SCA)
+        working-directory: app/api
+        run: snyk test --all-projects --severity-threshold=high
+
+      - name: Snyk IaC - Terraform
+        working-directory: infra/terraform
+        run: snyk iac test --severity-threshold=medium
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.4"
+
+      - name: Template Helm Manifests
+        run: helm template bugbites deploy/helm/bugbites > rendered.yaml
+
+      - name: Snyk IaC - K8s Manifests
+        run: snyk iac test rendered.yaml --severity-threshold=medium
+
+      - name: Build image (api)
+        working-directory: app/api
+        run: docker build -t bugbites-api:ci .
+
+      - name: Snyk Container test
+        run: snyk container test bugbites-api:ci --severity-threshold=high
+
+      - name: Monitor Open Source
+        working-directory: app/api
+        if: github.ref == 'refs/heads/main'
+        run: snyk monitor --all-projects --project-name=bugbites-api
+
+      - name: Monitor Container
+        if: github.ref == 'refs/heads/main'
+        run: snyk container monitor bugbites-api:ci --project-name=bugbites-api-image
+
+  build-and-push:
+    needs: snyk-scan
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push image
+        working-directory: app/api
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/bugbites-api:main .
+          docker push ghcr.io/${{ github.repository_owner }}/bugbites-api:main
