@@ -1,5 +1,5 @@
 # BAD (demo) – old base and root user (fix during demo)
-FROM node:14
+FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
