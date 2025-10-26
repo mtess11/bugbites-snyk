@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import './App.css'
 
 function App() {
   const [snacks, setSnacks] = useState([])
@@ -24,31 +25,15 @@ function App() {
       })
   }, [])
 
-  if (loading) return <p style={{ padding: 20 }}>Loading snacks...</p>
-  if (error) return <p style={{ color: 'red', padding: 20 }}>Error: {error}</p>
+  if (loading) return <p className="loading">Loading snacks...</p>
+  if (error) return <p className="error">Error: {error}</p>
 
   return (
-    <div style={{
-      fontFamily: 'system-ui, sans-serif',
-      padding: 20,
-      maxWidth: 600,
-      margin: '0 auto'
-    }}>
-      <h1 style={{ textAlign: 'center' }}>🥨 BugBites Snack Ratings</h1>
-      <ul style={{
-        listStyle: 'none',
-        padding: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12
-      }}>
+    <div className="app-container">
+      <h1 className="app-title">🥨 BugBites Snack Ratings</h1>
+      <ul className="snack-list">
         {snacks.map((s, i) => (
-          <li key={i} style={{
-            background: '#f9f9f9',
-            padding: '12px 16px',
-            borderRadius: 8,
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-          }}>
+          <li key={i} className="snack-item">
             <strong>{s.name}</strong> — <span>⭐ {s.rating}</span>
           </li>
         ))}
