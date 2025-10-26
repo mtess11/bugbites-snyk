@@ -1,7 +1,9 @@
 import express from "express";
+import cors from "cors";  
 import _ from "lodash";
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 app.get("/healthz", (req, res) => res.json({ ok: true }));
